@@ -18,4 +18,5 @@ Usage:
 ## Timeout on Mac
 
 `brew install coreutils`
+
 `cp /usr/local/opt/coreutils/libexec/gnubin/timeout /usr/local/bin/`
