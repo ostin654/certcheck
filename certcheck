@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Time::Piece;
+
+my ($filename, $days) = @ARGV;
+
+if (not defined $filename) {
+    die("Usage: $0 <file.txt> <treshold>");
+}
+
+if (not defined $days) {
+    die("Usage: $0 <file.txt> <treshold>");
+}
+
+open(my $handle, '<', $filename) or die "Could not open file '$filename' $!";
+chomp(my @lines = <$handle>);
+close $handle;
+
+my $line;
+my $domain;
+my $port;
+my $res;
+my $t;
+my $now = localtime;
+$now = $now->epoch;
+my $max_len = 0;
+
+foreach $line (@lines) {
+    ($domain, $port) = split /:/, $line;
+    if (not defined $domain) {
+        next;
+    }
+    if (not defined $port) {
+        next;
+    }
+    if ($domain =~ m/[^a-zA-Z0-9\-\._]/) {
+        next;
+    }
+    if ($port =~ m/[^0-9]/) {
+        next;
+    }
+    if (length $domain > $max_len) {
+        $max_len = length $domain;
+    }
+}
+
+foreach $line (@lines) {
+    ($domain, $port) = split /:/, $line;
+    if (not defined $domain) {
+        print "\e[96mEmpty domain, skipping...\e[0m\n";
+        next;
+    }
+    if (not defined $port) {
+        print "\e[96mEmpty port, skipping...\e[0m\n";
+        next;
+    }
+    if ($domain =~ m/[^a-zA-Z0-9\-\._]/) {
+        print "\e[91mDomain syntax error skipping...\e[0m\n";
+        next;
+    }
+    if ($port =~ m/[^0-9]/) {
+        print "\e[91mPort syntax error skipping...\e[0m\n";
+        next;
+    }
+    $res = `timeout 5 openssl s_client -servername $domain -connect $domain:$port </dev/null 2>/dev/null | openssl x509 -noout -dates | fgrep notAfter`;
+    chomp($res);
+    $t = Time::Piece->strptime($res, "notAfter=%b %e %H:%M:%S %Y %Z");
+
+    if ($t->epoch - $now > $days*24*60*60) {
+        printf("%$max_len"."s | \e[32m%s\e[0m\n", $domain, $t->cdate);
+    }
+    else {
+        printf("%$max_len"."s | \e[33m%s\e[0m\n", $domain, $t->cdate);
+    }
+}
