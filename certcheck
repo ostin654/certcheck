@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Time::Piece;
 
-my ($filename, $days) = @ARGV;
+my ($filename, $days, $verbose, $colors) = @ARGV;
 
 if (not defined $filename) {
     die("Usage: $0 <file.txt> <treshold>");
@@ -12,6 +12,18 @@ if (not defined $filename) {
 
 if (not defined $days) {
     die("Usage: $0 <file.txt> <treshold>");
+}
+
+if (not defined $verbose) {
+    $verbose = 0;
+} else {
+    $verbose = 1;
+}
+
+if (not defined $colors) {
+    $colors = 0;
+} else {
+    $colors = 1;
 }
 
 open(my $handle, '<', $filename) or die "Could not open file '$filename' $!";
@@ -49,19 +61,35 @@ foreach $line (@lines) {
 foreach $line (@lines) {
     ($domain, $port) = split /:/, $line;
     if (not defined $domain) {
-        print "\e[96mEmpty domain, skipping...\e[0m\n";
+        if ($colors) {
+            print "\e[96mEmpty domain, skipping...\e[0m\n";
+        } else {
+            print "Empty domain, skipping...\n";
+        }
         next;
     }
     if (not defined $port) {
-        print "\e[96mEmpty port, skipping...\e[0m\n";
+        if ($colors) {
+            print "\e[96mEmpty port, skipping...\e[0m\n";
+        } else {
+            print "Empty port, skipping...\n";
+        }
         next;
     }
     if ($domain =~ m/[^a-zA-Z0-9\-\._]/) {
-        print "\e[91mDomain syntax error skipping...\e[0m\n";
+        if ($colors) {
+            print "\e[91mDomain syntax error skipping...\e[0m\n";
+        } else {
+            print "Domain syntax error skipping...\n";
+        }
         next;
     }
     if ($port =~ m/[^0-9]/) {
-        print "\e[91mPort syntax error skipping...\e[0m\n";
+        if ($colors) {
+            print "\e[91mPort syntax error skipping...\e[0m\n";
+        } else {
+            print "Port syntax error skipping...\n";
+        }
         next;
     }
     $res = `timeout 5 openssl s_client -servername $domain -connect $domain:$port </dev/null 2>/dev/null | openssl x509 -noout -dates | fgrep notAfter`;
@@ -69,9 +97,19 @@ foreach $line (@lines) {
     $t = Time::Piece->strptime($res, "notAfter=%b %e %H:%M:%S %Y %Z");
 
     if ($t->epoch - $now > $days*24*60*60) {
-        printf("%$max_len"."s | \e[32m%s\e[0m\n", $domain, $t->cdate);
+        if ($verbose) {
+            if ($colors) {
+                printf("%$max_len"."s | \e[32m%s\e[0m\n", $domain, $t->cdate);
+            } else {
+                printf("%$max_len"."s | %s\n", $domain, $t->cdate);
+            }
+        }
     }
     else {
-        printf("%$max_len"."s | \e[33m%s\e[0m\n", $domain, $t->cdate);
+        if ($colors) {
+            printf("%$max_len"."s | \e[33m%s\e[0m\n", $domain, $t->cdate);
+        } else {
+            printf("%$max_len"."s | %s\n", $domain, $t->cdate);
+        }
     }
 }
